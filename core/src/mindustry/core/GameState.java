@@ -85,6 +85,11 @@ public class GameState{
     public @Nullable Planet getPlanet(){
         return rules.sector != null ? rules.sector.planet : rules.planet;
     }
+        
+    public float waveTimeMultiplier(){
+        return isCampaign() ? getPlanet().campaignRules.difficulty.waveTimeMultiplier : 1f;
+    }
+    
 
     public boolean isEditor(){
         return rules.editor;
