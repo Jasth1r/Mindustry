@@ -222,31 +222,42 @@ public class ApplicationTests{
         String str2 = JsonIO.write(new Rules(){{
             attackMode = true;
         }});
+
+        Rules res2 = JsonIO.read(Rules.class, str2);
+        assertTrue(res2.attackMode);
     }
 
-    @Test
-    void serverListJson(){
-        String[] files = {"servers_v6.json", "servers_v7.json"};
-
-
-        for(String file : files){
-            try{
-                String str = Core.files.absolute("./../../" + file).readString();
-                assertEquals(ValueType.array, new JsonReader().parse(str).type());
-                assertTrue(Jval.read(str).isArray());
-                JSONArray array = new JSONArray(str);
-                assertTrue(array.length() > 0);
-            }catch(Exception e){
-                fail("Failed to parse " + file, e);
-            }
+    @ParameterizedTest
+    @ValueSource(strings = {
+    "servers_v6.json",
+    "servers_v7.json"
+    })
+    void serverListJson(String file){
+        try{
+            String str = Core.files.absolute("./../../" + file).readString();
+            assertEquals(ValueType.array, new JsonReader().parse(str).type());
+            assertTrue(Jval.read(str).isArray());
+            JSONArray array = new JSONArray(str);
+            assertTrue(array.length() > 0);
+        }catch(Exception e){
+            fail("Failed to parse " + file, e);
         }
     }
 
     @Test
-    void initialization(){
+    void logicNotNull(){
         assertNotNull(logic);
+    }
+
+    @Test
+    void worldNotNull(){
         assertNotNull(world);
-        assertTrue(content.getContentMap().length > 0);
+    }
+
+    @Test
+    void contentLoaded(){
+        assertNotNull(content);
+        assertTrue(content.getContentMap().length > 0, "No content loaded.");
     }
 
     @Test
