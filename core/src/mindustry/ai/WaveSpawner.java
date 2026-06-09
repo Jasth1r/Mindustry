@@ -21,6 +21,8 @@ import static mindustry.Vars.*;
 
 public class WaveSpawner{
     private static final float margin = 0f, coreMargin = tilesize * 2f, maxSteps = 30;
+    /** Duration in ticks that spawned units are invincible. 60 ticks = 1 second, preventing spawn-killing. */
+   private static final float SPAWN_INVINCIBLE_TICKS = 60f;
 
     private int tmpCount;
     private Seq<Tile> spawns = new Seq<>(false);
@@ -228,7 +230,7 @@ public class WaveSpawner{
     /** Applies the standard wave spawn effects to a unit - invincibility, unmoving. */
     public void spawnEffect(Unit unit){
         unit.apply(StatusEffects.unmoving, 30f);
-        unit.apply(StatusEffects.invincible, 60f);
+        unit.apply(StatusEffects.invincible, SPAWN_INVINCIBLE_TICKS);
         unit.unloaded();
 
         Events.fire(new UnitSpawnEvent(unit));

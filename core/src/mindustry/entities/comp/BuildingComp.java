@@ -1385,30 +1385,40 @@ abstract class BuildingComp implements Posc, Teamc, Healthc, Buildingc, Timerc, 
 
     }
 
-    /** Called when arbitrary configuration is applied to a tile. */
+    /*
+    Extracting the configured follows the Single Responsibility Principle
+    (SRP) and improves cohesion. It also makes the logic independently testable.
+    
+    */
+
     public void configured(@Nullable Unit builder, @Nullable Object value){
-        //null is of type void.class; anonymous classes use their superclass.
-        Class<?> type = value == null ? void.class : value.getClass().isAnonymousClass() ? value.getClass().getSuperclass() : value.getClass();
+    Class<?> type = resolveConfigType(value);
 
-        if(value instanceof Item) type = Item.class;
-        if(value instanceof Block) type = Block.class;
-        if(value instanceof Liquid) type = Liquid.class;
-        if(value instanceof UnitType) type = UnitType.class;
+    if(builder != null && builder.isPlayer()){
+        updateLastAccess(builder.getPlayer());
+    }
 
-        if(builder != null && builder.isPlayer()){
-            updateLastAccess(builder.getPlayer());
-        }
-
-        if(block.configurations.containsKey(type)){
-            block.configurations.get(type).get(this, value);
-        }else if(value instanceof Building build){
-            //copy config of another building
-            var conf = build.config();
-            if(conf != null && !(conf instanceof Building)){
-                configured(builder, conf);
-            }
+    if(block.configurations.containsKey(type)){
+        block.configurations.get(type).get(this, value);
+    }else if(value instanceof Building build){
+        //copy config of another building
+        var conf = build.config();
+        if(conf != null && !(conf instanceof Building)){
+            configured(builder, conf);
         }
     }
+}
+
+protected Class<?> resolveConfigType(@Nullable Object value){
+    //null is of type void.class; anonymous classes use their superclass.
+    boolean isAnon = value != null && value.getClass().isAnonymousClass();
+    Class<?> type = value == null ? void.class : isAnon ? value.getClass().getSuperclass() : value.getClass();
+    if(value instanceof Item) return Item.class;
+    if(value instanceof Block) return Block.class;
+    if(value instanceof Liquid) return Liquid.class;
+    if(value instanceof UnitType) return UnitType.class;
+    return type;
+}
 
     public void updateLastAccess(Player player){
         lastAccessed = player.coloredName();
@@ -2079,10 +2089,7 @@ abstract class BuildingComp implements Posc, Teamc, Healthc, Buildingc, Timerc, 
             case itemCapacity -> block.hasItems ? block.itemCapacity : 0;
             case liquidCapacity -> block.hasLiquids ? block.liquidCapacity : 0;
             case powerCapacity -> block.consPower != null ? block.consPower.capacity : 0f;
-            case powerNetIn -> power == null ? 0 : power.graph.getLastScaledPowerIn() * 60;
-            case powerNetOut -> power == null ? 0 : power.graph.getLastScaledPowerOut() * 60;
-            case powerNetStored -> power == null ? 0 : power.graph.getLastPowerStored();
-            case powerNetCapacity -> power == null ? 0 : power.graph.getLastCapacity();
+            case powerNetIn, powerNetOut, powerNetStored, powerNetCapacity -> powerSense(sensor);
             case enabled -> enabled ? 1 : 0;
             case controlled -> this instanceof ControlBlock c && c.isControlled() ? GlobalVars.ctrlPlayer : 0;
             case payloadCount -> (getPayloads() != null ? getPayloads().total() : 0) + (getPayload() != null ? 1 : 0);
@@ -2090,6 +2097,16 @@ abstract class BuildingComp implements Posc, Teamc, Healthc, Buildingc, Timerc, 
             case cameraX, cameraY, cameraWidth, cameraHeight -> this instanceof ControlBlock c ? c.unit().sense(sensor) : 0;
             default -> Float.NaN; //gets converted to null in logic
         };
+            protected double powerSense(LAccess sensor){
+        if(power == null) return 0;
+        return switch(sensor){
+            case powerNetIn -> power.graph.getLastScaledPowerIn() * 60;
+            case powerNetOut -> power.graph.getLastScaledPowerOut() * 60;
+            case powerNetStored -> power.graph.getLastPowerStored();
+            case powerNetCapacity -> power.graph.getLastCapacity();
+            default -> 0;
+    };
+}
     }
 
     @Override
@@ -2107,11 +2124,15 @@ abstract class BuildingComp implements Posc, Teamc, Healthc, Buildingc, Timerc, 
     public double sense(Content content){
         if(content instanceof Item i && items != null) return items.get(i);
         if(content instanceof Liquid l && liquids != null) return liquids.get(l);
+    return getPayloadSense(content);
+    }
+
+    protected double getPayloadSense(Content content){
         if(getPayloads() != null){
-            if(content instanceof UnitType u) return getPayloads().get(u);
-            if(content instanceof Block b) return getPayloads().get(b);
-        }
-        return Float.NaN; //invalid sense
+        if(content instanceof UnitType u) return getPayloads().get(u);
+        if(content instanceof Block b) return getPayloads().get(b);
+    }
+    return Float.NaN; //invalid sense
     }
 
     @Override
